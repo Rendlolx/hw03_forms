@@ -1,17 +1,15 @@
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import PostForm
 from .models import Group, Post, User
+from .utils import paginate_page
 
 
 def index(request):
     template_main = 'posts/index.html'
-    posts = Post.objects.all()
-    page = Paginator(posts, 10)
-    page_number = request.GET.get('page')
-    page_obj = page.get_page(page_number)
+    posts = Post.objects.select_related('author', 'group')
+    page_obj = paginate_page(request, posts)
     context = {
         'page_obj': page_obj,
     }
@@ -22,9 +20,7 @@ def group_posts(request, slug):
     template_group = 'posts/group_list.html'
     group = get_object_or_404(Group, slug=slug)
     posts = group.posts.all()
-    page = Paginator(posts, 10)
-    page_number = request.GET.get('page')
-    page_obj = page.get_page(page_number)
+    page_obj = paginate_page(request, posts)
     context = {
         'page_obj': page_obj,
         'group': group
@@ -34,15 +30,11 @@ def group_posts(request, slug):
 
 def profile(request, username):
     template_name = 'posts/profile.html'
-    author = User.objects.get(username=username)
+    author = get_object_or_404(User, username=username)
     profile = author.posts.all()
-    page = Paginator(profile, 10)
-    page_number = request.GET.get('page')
-    page_obj = page.get_page(page_number)
-    post_count = Post.objects.filter(author__username=username).count()
+    page_obj = paginate_page(request, profile)
     context = {
         'page_obj': page_obj,
-        'post_count': post_count,
         'author': author
     }
     return render(request, template_name, context)
@@ -52,10 +44,8 @@ def post_detail(request, post_id):
     template_name = 'posts/post_detail.html'
     post = get_object_or_404(Post, pk=post_id)
     author = get_object_or_404(User, id=post.author_id)
-    post_count = Post.objects.filter(author=author).count()
     context = {
         'post': post,
-        'post_count': post_count,
         'author': author
     }
     return render(request, template_name, context)
